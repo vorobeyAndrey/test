@@ -2,61 +2,44 @@
 	/************************************************
 	* Please don`t change the code bellow this line *
     ************************************************/
-    console.log('123123123')
-    function Parallel(options) {
+   function Parallel(options) {
         this.counter = 0
         this.jobs = []
-        this.results = []
         this.options = options
-        
-        function getResults (data) {
-            return data
-        }
-
-        function addResults (self, list) {
-            for (var i =0; i < list.length; i++) {
-                // self.results.push(list[i]())
-                console.log(list[i]())
-            }
-            
-        }
-
-        this.job = function (stepFun) {
-            var i = this.counter%this.options.parallelJobs
-                if (this.jobs[i]) {
-                    this.jobs[i].push(function() {
-                        var t = stepFun(getResults)
-                        return t
-                    })
-                } else {
-                    this.jobs[i] = []
-                    this.jobs[i].push( function() {
-                        var t = stepFun(getResults)
-                        return t
-                    })
-                }
-
-            this.counter++
-            return this
-        }
-        this.done = function (onDone) {    
-            console.log(this.jobs)  
-            var results = []
-            for (var i =0; i < this.jobs.length; i++ ) {
-              addResults(this, this.jobs[i])  
-            }
-            console.log(this.results)
-            // for (var i =0; i<this.jobs.length; i++){
-            //     this.jobs[i].then(function (data) {
-            //         console.log(data, '!!!')
-            //     })
-            // }
-        }
     }
 
-    Parallel.prototype.job = function(stepFun) {
+    Parallel.prototype.job = function (stepFun) {
+        var i = this.counter % this.options.parallelJobs
+        if (this.jobs[i]) {
+            this.jobs[i].push(stepFun)
+        } else {
+            this.jobs[i] = []
+            this.jobs[i].push(stepFun)
+        }
 
+        this.counter++
+        return this
     }
+
+  Parallel.prototype.done = function (onDone) {
+      var results = []
+      var self = this
+      var parallelJobsLength = this.jobs[0].length
+
+      for (var i =0; i < parallelJobsLength; i++) {
+          for (var n =0; n < self.jobs.length; n++) {
+              if (this.jobs[n][i]) {
+                  var promise = new Promise(function (resolve, reject) {
+                      self.jobs[n][i](resolve)
+                  })
+                  results.push(promise)
+              }
+          }
+      }
+      Promise.all(results).then(function(data) {
+          onDone(data)
+      })
+  }
 
 	var runner = new Parallel({
 		parallelJobs: 2
