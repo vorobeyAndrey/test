@@ -1,89 +1,98 @@
 
-	/************************************************
-	* Please don`t change the code bellow this line *
-    ************************************************/
-   function Parallel(options) {
-        this.counter = 0
-        this.jobs = []
-        this.options = options
-    }
+/************************************************
+ * Please don`t change the code bellow this line *
+ ************************************************/
+function Parallel(options) {
+	this.counter = 0
+	this.steps = []
+	this.options = options
+}
 
-    Parallel.prototype.job = function (stepFun) {
-        var i = this.counter % this.options.parallelJobs
-        if (this.jobs[i]) {
-            this.jobs[i].push(stepFun)
-        } else {
-            this.jobs[i] = []
-            this.jobs[i].push(stepFun)
-        }
+Parallel.prototype.job = function (stepFun) {
+	this.steps.push({value: stepFun, result: null})
+	this.counter++
+	return this
+}
 
-        this.counter++
-        return this
-    }
+function runTread (jobs, length) {
+	if (jobs.length === length) return
 
-  Parallel.prototype.done = function (onDone) {
-      var results = []
-      var self = this
-      var parallelJobsLength = this.jobs[0].length
+	new Promise(function(resolve, reject) {
+		jobs[length].value(resolve)
+	}).then(function (data) {
+			jobs[length].result = data
+			runTread(jobs, length + 1)
+		})
+}
 
-      for (var i =0; i < parallelJobsLength; i++) {
-          for (var n =0; n < self.jobs.length; n++) {
-              if (this.jobs[n][i]) {
-                  var promise = new Promise(function (resolve, reject) {
-                      self.jobs[n][i](resolve)
-                  })
-                  results.push(promise)
-              }
-          }
-      }
-      Promise.all(results).then(function(data) {
-          onDone(data)
-      })
-  }
+Parallel.prototype.done = function (onDone) {
+	var self = this
+	var commonCount = Math.ceil(this.steps.length / this.options.parallelJobs)
 
-	var runner = new Parallel({
-		parallelJobs: 2
-	});
-
-	runner.job(step1)
-		.job(step2)
-		.job(step3)
-		.job(step4)
-		.done(onDone);
-
-	function step1(done) {
-		console.log('step1');
-		setTimeout(done, 1000, 'hello world');
+	for(var i = 0; i< this.options.parallelJobs; i++) {
+		var startPoint = i * commonCount
+		var steps = this.steps.slice(startPoint, startPoint + commonCount)
+		runTread(steps, 0)
 	}
 
-	function step2(done) {
-		console.log('step2');
-		setTimeout(done, 1200, 'Job succeded');
-	}
+	var interval =  setInterval(function() {
+		var done =  self.steps.every(function(step) {
+				return step.result !== null
+			})
 
-	function step3(done) {
-		console.log('step3');
-		setTimeout(done, 1500, 'step3');
-	}
+		if (done) {
+			clearInterval(interval)
+			var results = self.steps.map(function(step) {
+				return step.result
+			})
+			onDone(results)
+		}
+	}, 300)
+}
 
-	function step4(done) {
-		console.log('step4');
-		setTimeout(done, 100, 'step4');
-	}
+var runner = new Parallel({
+	parallelJobs: 2
+});
 
-	var isPassed = false;
-	function onDone(results) {
-		console.log('onDone', results);
-		console.assert(Array.isArray(results), 'expect result to be array');
-		console.assert(results[0] === 'hello world', 'Wrong answer 1');
-		console.assert(results[1] === 'Job succeded', 'Wrong answer 2');
-		console.assert(results[2] === 'step3', 'Wrong answer 3');
-		console.assert(results[3] === 'step4', 'Wrong answer 4');
-		console.log('Thanks, all works fine');
-		isPassed = true;
-	}
+runner.job(step1)
+	.job(step2)
+	.job(step3)
+	.job(step4)
+	.done(onDone);
 
-	setTimeout(function(){
-		if(isPassed) return;
-		console.error('Test is not done.');
-	}, 10000);
+function step1(done) {
+	console.log('step1');
+	setTimeout(done, 1000, 'hello world');
+}
+
+function step2(done) {
+	console.log('step2');
+	setTimeout(done, 1200, 'Job succeded');
+}
+
+function step3(done) {
+	console.log('step3');
+	setTimeout(done, 1500, 'step3');
+}
+
+function step4(done) {
+	console.log('step4');
+	setTimeout(done, 100, 'step4');
+}
+
+var isPassed = false;
+function onDone(results) {
+	console.log('onDone', results);
+	console.assert(Array.isArray(results), 'expect result to be array');
+	console.assert(results[0] === 'hello world', 'Wrong answer 1');
+	console.assert(results[1] === 'Job succeded', 'Wrong answer 2');
+	console.assert(results[2] === 'step3', 'Wrong answer 3');
+	console.assert(results[3] === 'step4', 'Wrong answer 4');
+	console.log('Thanks, all works fine');
+	isPassed = true;
+}
+
+setTimeout(function(){
+	if(isPassed) return;
+	console.error('Test is not done.');
+}, 10000);
