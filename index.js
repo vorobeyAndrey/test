@@ -3,51 +3,42 @@
  * Please don`t change the code bellow this line *
  ************************************************/
 function Parallel(options) {
-	this.counter = 0
 	this.steps = []
 	this.options = options
 }
 
 Parallel.prototype.job = function (stepFun) {
 	this.steps.push({value: stepFun, result: null})
-	this.counter++
 	return this
 }
 
-function runTread (jobs, length) {
+Parallel.prototype.runThread = function (jobs, length) {
+	var self = this
 	if (jobs.length === length) return
 
-	new Promise(function(resolve, reject) {
+	return new Promise(function(resolve, reject) {
 		jobs[length].value(resolve)
 	}).then(function (data) {
-			jobs[length].result = data
-			runTread(jobs, length + 1)
-		})
+		jobs[length].result = data
+		return self.runThread(jobs, length + 1)
+	})
 }
 
 Parallel.prototype.done = function (onDone) {
 	var self = this
+	var promises = []
 	var commonCount = Math.ceil(this.steps.length / this.options.parallelJobs)
 
-	for(var i = 0; i< this.options.parallelJobs; i++) {
-		var startPoint = i * commonCount
-		var steps = this.steps.slice(startPoint, startPoint + commonCount)
-		runTread(steps, 0)
-	}
-
-	var interval =  setInterval(function() {
-		var done =  self.steps.every(function(step) {
-				return step.result !== null
-			})
-
-		if (done) {
-			clearInterval(interval)
-			var results = self.steps.map(function(step) {
-				return step.result
-			})
-			onDone(results)
+		for(var i = 0; i< self.options.parallelJobs; i++) {
+			var startPoint = i * commonCount
+			var steps = self.steps.slice(startPoint, startPoint + commonCount)
+			promises.push(self.runThread(steps, 0))
 		}
-	}, 300)
+
+		Promise.all(promises).then(function(res) {
+			var results = self.steps.map(function(step){return step.result})
+			onDone(results)
+		})
 }
 
 var runner = new Parallel({
