@@ -12,33 +12,32 @@ Parallel.prototype.job = function (stepFun) {
 	return this
 }
 
-Parallel.prototype.runThread = function (jobs, length) {
-	var self = this
-	if (jobs.length === length) return
-
-	return new Promise(function(resolve, reject) {
-		jobs[length].value(resolve)
-	}).then(function (data) {
-		jobs[length].result = data
-		return self.runThread(jobs, length + 1)
-	})
-}
-
 Parallel.prototype.done = function (onDone) {
 	var self = this
 	var promises = []
 	var commonCount = Math.ceil(this.steps.length / this.options.parallelJobs)
 
-		for(var i = 0; i< self.options.parallelJobs; i++) {
-			var startPoint = i * commonCount
-			var steps = self.steps.slice(startPoint, startPoint + commonCount)
-			promises.push(self.runThread(steps, 0))
-		}
+	for(var i = 0; i< self.options.parallelJobs; i++) {
+		var startPoint = i * commonCount
+		var steps = self.steps.slice(startPoint, startPoint + commonCount)
+		promises.push(runThread(steps, 0))
+	}
 
-		Promise.all(promises).then(function(res) {
-			var results = self.steps.map(function(step){return step.result})
-			onDone(results)
-		})
+	Promise.all(promises).then(function(res) {
+		var results = self.steps.map(function(step){return step.result})
+		onDone(results)
+	})
+
+	function runThread (jobs, length) {
+		if (jobs.length === length) return
+
+		return new Promise(function (resolve, reject) {
+			jobs[length].value(resolve)
+		}).then(function (data) {
+				jobs[length].result = data
+				return runThread(jobs, length + 1)
+			})
+	}
 }
 
 var runner = new Parallel({
