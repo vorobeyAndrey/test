@@ -1,16 +1,10 @@
 function quicksort (arr, lo, hi) {
-    if (lo>=hi) return arr
-    var pivot = partition(arr, lo, hi)
-    quicksort(arr, lo, pivot-1)
-    quicksort(arr, pivot +1, hi)
-}
-
-function partition (arr, lo, hi) {
     var i =lo
+    var pivot = arr[hi]
     j = hi
-    var pivot = arr[j]
+
     while(i <= j) {
-        while (arr[i]< pivot) {
+        while (arr[i] < pivot) {
             i++
         }
         while (arr[j] > pivot) {
@@ -20,9 +14,17 @@ function partition (arr, lo, hi) {
             var t = arr[i]
             arr[i] =  arr[j]
             arr[j] = t
+            i++
+            j--
         }
     }
-    return j
 
+    if (lo < j)
+    quicksort(arr, lo, j)
+    if (i < hi)
+    quicksort(arr, i, hi)
+
+    return arr
 }
+
 console.log(quicksort([2,5,6,3,1,4], 0, 5))
